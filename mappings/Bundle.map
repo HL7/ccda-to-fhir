@@ -13,9 +13,7 @@ group BundleClinicalDocument
 	
 	id: for source.identifier make target.id
 	entry: for source.entry as entry then {
-		resource: for entry.resource as resource then {
-			composition: for resource.composition as composition then CompositionClinicalDocument(source, composition, target)
-		}
+		resource: for entry.resource as resource where resource.ofType(FHIR.Composition) then CompositionClinicalDocument(source, resource, target)
 	}
 endgroup
 

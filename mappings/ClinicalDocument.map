@@ -185,7 +185,7 @@ group ClinicalDocumentPatientRole
 		name: for patient.name make target.name
 		//gender: for patient.administrativeGenderCode make target.gender
 		birthDate: for patient.birthTime make target.birthDate
-		//deceasedBL: for patient.deceasedInd as indicator where patient.deceasedTime.empty() make target.deceased = cast(indicator, "boolean")
+		deceasedBL: for patient.deceasedInd as indicator where patient.deceasedTime.empty() make target.deceased = create("boolean") as bool then boolean(indicator, bool)
 		deceasedTime: for patient.deceasedTime make target.deceased
 		maritalStatus: for patient.maritalStatusCode make target.maritalStatus
 		language: for patient.languageCommunication as language make target.communication as communication then {
