@@ -5,9 +5,7 @@ uses "http://hl7.org/fhir/cda/StructureDefinition/ClinicalDocument" alias Clinic
 
 imports "http://hl7.org/fhir/cda/mapping/BundleToCDA"
 
+group DischargeSummaryDocument(source source : Bundle) {
+  source -> create('ClinicalDocument') as target then BundleClinicalDocument(source, target) "start";
+}
 
-group DischargeSummaryDocument
-	input source: Bundle as source
-	
-	start: for source make create("ClinicalDocument") as target then BundleClinicalDocument(source, target)
-endgroup
