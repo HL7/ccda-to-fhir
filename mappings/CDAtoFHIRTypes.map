@@ -75,6 +75,9 @@ group STstring(source source : ST, target target : string) extends Any <<types>>
 group EDstring(source source : ED, target target : string) extends STstring <<types>> {
 }
 
+group ONstring(source source : ON, target target : string) extends STstring <<types>> {
+}
+
 group CSCode(source source : CS, target target : code) extends Any <<types>> {
   source.code as c -> target.value = cast(c, 'string');
 }

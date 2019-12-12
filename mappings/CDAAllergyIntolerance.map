@@ -38,7 +38,9 @@ group AllergyIntolerance(source source : Act, source patient : Patient, target b
       } "consumable";
       observation.entryRelationship as entry where typeCode = 'MFST' -> allergy.reaction as reaction then {
         entry.observation as reactionObs then {
-          reactionObs.effectiveTime -> reaction.onset;
+          reactionObs.effectiveTime as time then {
+            time.low -> reaction.onset;
+          };
           reactionObs.value -> reaction.manifestation;
           reactionObs.entryRelationship as sevEntry where typeCode = 'SUBJ' then {
             sevEntry.observation as severity then {
