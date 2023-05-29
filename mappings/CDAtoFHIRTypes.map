@@ -21,178 +21,115 @@ uses "http://hl7.org/fhir/StructureDefinition/boolean" as target
 uses "http://hl7.org/fhir/cda/StructureDefinition/IVL_TS" as source
 uses "http://hl7.org/fhir/StructureDefinition/Period" as target
 
-group Any
-  // nullFlavor, we use the ISO nullFlavor extension
-  nullFlavor: for source.nullFlavor as nullFlavor make target.extension as ext then {
-  	url: for nullFlavor make ext.url = "http://hl7.org/fhir/StructureDefinition/iso21090-nullFlavor"
-    value: for nullFlavor.value as v make ext.value = cast(v, "string")
-  }
-      
-endgroup
+group Any() {
+  source.nullFlavor as nullFlavor -> target.extension as ext then {
+    nullFlavor -> ext.url = 'http://hl7.org/fhir/StructureDefinition/iso21090-nullFlavor' "url";
+    nullFlavor.value as v -> ext.value = cast(v, 'string');
+  };
+}
 
-group for types II extends Any
-	input source: II as source
-	input target: Identifier as target
+group II(source source : II, target target : Identifier) extends Any <<types>> {
+  source.root as r where source.extension.exists() -> target.system = translate(r, 'http://hl7.org/fhir/ConceptMap/special-oid2uri', 'uri') "root1";
+  source.root as r where source.extension.empty() ->  target.system = 'urn:ietf:rfc:3986',  target.value = append('urn:oid:', r) "root2";
+  source.extension as e -> target.value = e;
+  source.assigningAuthorityName as s ->  target.assigner as a,  a.display = s; // there's no equivalent for displayable in FHIR - and it probably will never matter, but if it does, it might map to Identifier.use.
+  source.displayable as displayable -> target.extension as ext then {
+    displayable -> ext.url = 'http://hl7.org/fhir/cdaStructureDefinition/extension-displayable' "url";
+    displayable.value as v -> ext.value = cast(v, 'string');
+  };
+}
 
-  root1: for source.root as r where source.extension.exists() make target.system = translate(r, "http://hl7.org/fhir/ConceptMap/special-oid2uri", "uri")  
-  root2: for source.root as r where source.extension.empty() make target.system = "urn:ietf:rfc:3986", target.value = append("urn:oid:", r)
-  extension: for source.extension as e make target.value = e
-  assigningAuthorityName: for source.assigningAuthorityName as s make target.assigner as a, a.display = s
-  
-  // there's no equivalent for displayable in FHIR - and it probably will never matter, but if it does, it might map to Identifier.use. 
-  // otherwise, it's just going to be an extension
-  displayable: for source.displayable as displayable make target.extension as ext then {
-      url: for displayable make ext.url = "http://hl7.org/fhir/cdaStructureDefinition/extension-displayable"
-      value: for displayable.value as v make ext.value = cast(v, "string")
-  }
-endgroup
+group TemplateID(source template : II, target target) {
+  template -> target.extension as ext then {
+    template -> ext.url = 'http://hl7.org/fhir/cda/StructureDefinition/templateID' "url";
+    template -> ext.value = create('Identifier') as value then II(template, value) "value";
+  } "templateID";
+}
 
-group TemplateID
-	input template: II as source
-	input target as target
+group Negation(source negation : BL, target target) {
+  negation -> target.modifierExtension as ext then {
+    negation -> ext.url = 'http://hl7.org/fhir/cda/StructureDefinition/negationIndicator' "url";
+    negation as neg ->  ext.value = create('boolean'),  ext.value = neg "value";
+  } "negation";
+}
 
-	templateID: for template make target.extension as ext then {
-		url: for template make ext.url = "http://hl7.org/fhir/cda/StructureDefinition/templateID"
-    	value: for template make ext.value = create("Identifier") as value then II(template, value)
-	}
-endgroup
+group TSInstant(source source : TS, target target : instant) extends Any <<types>> {
+  source.value as v -> target.value = cast(v, 'string');
+}
 
-group Negation
-	input negation: BL as source
-	input target as target
+group TSDateTime(source source : TS, target target : dateTime) extends TSInstant <<types>> {
+}
 
-	negation: for negation make target.modifierExtension as ext then {
-		url: for negation make ext.url = "http://hl7.org/fhir/cda/StructureDefinition/negationIndicator"
-    	value: for negation as neg make ext.value = create("boolean"), ext.value = neg
-	}
-endgroup
+group TSDate(source source : TS, target target : date) extends TSInstant <<types>> {
+}
 
+group IVLTSPeriod(source source : IVL_TS, target target : Period) extends Any <<types>> {
+  source.low -> target.start;
+  source.high -> target.end;
+}
 
+group STstring(source source : ST, target target : string) extends Any <<types>> {
+  source as v -> target.value = cast(v, 'string') "value";
+}
 
-group for types TSInstant extends Any 
-  input source : TS as source 
-  input target : instant as target 
+group EDstring(source source : ED, target target : string) extends STstring <<types>> {
+}
 
-  value: for source.value as v make target.value = cast(v, "string")
-  
-endgroup
+group ONstring(source source : ON, target target : string) extends STstring <<types>> {
+}
 
-group for types TSDateTime extends TSInstant
-  input source : TS as source 
-  input target : dateTime as target 
-endgroup
+group CSCode(source source : CS, target target : code) extends Any <<types>> {
+  source.code as c -> target.value = cast(c, 'string');
+}
 
-group for types TSDate extends TSInstant
-  input source : TS as source 
-  input target : date as target 
-endgroup
+group CECode(source source : CE, target target : code) extends CSCode <<types>> {
+}
 
-group for types IVLTSPeriod extends Any
-	input source: IVL_TS as source
-	input target: Period as target
-	
-	low: for source.low make target.start
-	high: for source.high make target.end
-	
-endgroup
+group CDCode(source source : CD, target target : code) extends CSCode <<types>> {
+}
 
-group for types STstring extends Any
-	input source: ST as source
-	input target: string as target
-	
-	value: for source as v make target.value = cast(v, "string")
-endgroup
+group CECodeableConcept(source source : CE, target target : CodeableConcept) extends Any <<types>> {
+  source.originalText -> target.text;
+  source -> target.coding as coding then {
+    source.code as code -> coding.code = cast(code, 'string');
+    source.codeSystem as system -> coding.system = translate(system, 'http://hl7.org/fhir/ConceptMap/special-oid2uri', 'uri');
+    source.displayName as display -> coding.display = cast(display, 'string');
+  } "code";
+  source.translation as translation -> target.coding as coding then {
+    translation.code as code -> coding.code = cast(code, 'string');
+    translation.codeSystem as system -> coding.system = translate(system, 'http://hl7.org/fhir/ConceptMap/special-oid2uri', 'uri');
+    translation.displayName as display -> coding.display = cast(display, 'string');
+  };
+}
 
-group for types EDstring extends STstring
-	input source: ED as source
-	input target: string as target
-endgroup
+group CSCodeableConcept(source source : CS, target target : CodeableConcept) extends CECodeableConcept <<types>> {
+}
 
+group CDCodeableConcept(source source : CD, target target : CodeableConcept) extends CECodeableConcept <<types>> {
+}
 
-group for types CSCode extends Any
-  input source : CS as source 
-  input target : code as target 
+group ENHumanName(source source : EN, target target : HumanName) extends Any <<types>> {
+  source.family as v -> target.family = cast(v, 'string');
+  source.given as v -> target.given = cast(v, 'string');
+  source.prefix as v -> target.prefix = cast(v, 'string');
+  source.suffix as v -> target.suffix = cast(v, 'string');
+  source.use as c -> target.use = translate(c, 'http://hl7.org/fhir/ConceptMap/cm-name-use-v3', 'code');
+  source.validTime -> target.period;
+}
 
-  code: for source.code as c make target.value = cast(c, "string")
-  
-endgroup
+group ADAddress(source source : AD, target target : Address) extends Any <<types>> {
+  source.country as v -> target.country = cast(v, 'string');
+  source.state as v -> target.state = cast(v, 'string');
+  source.county as v -> target.district = cast(v, 'string');
+  source.city as v -> target.city = cast(v, 'string');
+  source.postalCode as v -> target.postalCode = cast(v, 'string');
+  source.streetAddressLine as v -> target.line = cast(v, 'string') "streetAddress";
+  source.use as c -> target.use = translate(c, 'http://hl7.org/fhir/ConceptMap/cm-address-use-v3', 'code');
+  source.useablePeriod -> target.period;
+}
 
-group for types CECode extends CSCode
-  input source : CE as source 
-  input target : code as target 
-endgroup
+group TELContactPoint(source source : TEL, target target : ContactPoint) extends Any <<types>> {
+  source.value as v -> target.value = cast(v, 'string');
+  source.useablePeriod -> target.period; // use: for source.use as c make target.use = translate(c, 'http://hl7.org/fhir/ConceptMap/cm-telecom-use-v3', 'code')
+}
 
-group for types CDCode extends CSCode
-  input source : CD as source 
-  input target : code as target 
-endgroup
-
-group for types CECodeableConcept extends Any 
-  input source : CE as source 
-  input target : CodeableConcept as target 
-
-  //Not sure why this rule isn't mapping properly
-  originalText: for source.originalText make target.text
-  
-  code: for source make target.coding as coding then {
-  	code: for source.code as code make coding.code = cast(code, "string")
-	codeSystem: for source.codeSystem as system make coding.system = translate(system, "http://hl7.org/fhir/ConceptMap/special-oid2uri", "uri")
-	displayName: for source.displayName as display make coding.display = cast(display, "string")
-  }
-  
-  translation: for source.translation as translation make target.coding as coding then {
-  	code: for translation.code as code make coding.code = cast(code, "string")
-	codeSystem: for translation.codeSystem as system make coding.system = translate(system, "http://hl7.org/fhir/ConceptMap/special-oid2uri", "uri")
-	displayName: for translation.displayName as display make coding.display = cast(display, "string")
-  }
-  
-endgroup
-
-group for types CSCodeableConcept extends CECodeableConcept 
-  input source : CS as source 
-  input target : CodeableConcept as target 
-
-endgroup
-
-group for types CDCodeableConcept extends CECodeableConcept 
-  input source : CD as source 
-  input target : CodeableConcept as target 
-
-endgroup
-
-group for types ENHumanName extends Any
-	input source: EN as source
-	input target: HumanName as target
-	
-	family: for source.family as v make target.family = cast(v, "string")
-	given: for source.given as v make target.given = cast(v, "string")
-	prefix: for source.prefix as v make target.prefix = cast(v, "string")
-	suffix: for source.suffix as v make target.suffix = cast(v, "string")
-	use: for source.use as c make target.use = translate(c, 'http://hl7.org/fhir/ConceptMap/cm-name-use-v3', 'code')
-	validTime: for source.validTime make target.period
-	
-endgroup
-
-group for types ADAddress extends Any
-	input source: AD as source
-	input target: Address as target
-	
-	country: for source.country as v make target.country = cast(v, "string")
-	state: for source.state as v make target.state = cast(v, "string")
-	county: for source.county as v make target.district = cast(v, "string")
-	city: for source.city as v make target.city = cast(v, "string")
-	postalCode: for source.postalCode as v make target.postalCode = cast(v, "string")
-	streetAddress: for source.streetAddressLine as v make target.line = cast(v, "string")
-	use: for source.use as c make target.use = translate(c, 'http://hl7.org/fhir/ConceptMap/cm-address-use-v3', 'code')
-	useablePeriod: for source.useablePeriod make target.period
-	
-endgroup
-
-group for types TELContactPoint extends Any
-	input source: TEL as source
-	input target: ContactPoint as target
-	
-	value: for source.value as v make target.value = cast(v, "string")
-	useablePeriod: for source.useablePeriod make target.period
-	//use: for source.use as c make target.use = translate(c, 'http://hl7.org/fhir/ConceptMap/cm-telecom-use-v3', 'code')
-endgroup

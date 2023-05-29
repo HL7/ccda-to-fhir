@@ -3,33 +3,28 @@ map "http://hl7.org/fhir/cda/mapping/fhirToCDATypes" = "Transform for FHIR types
 uses "http://hl7.org/fhir/StructureDefinition/Identifier" as source
 uses "http://hl7.org/fhir/cda/StructureDefinition/II" as target
 
-group Any
-  // nullFlavor, we use the ISO nullFlavor extension
-  nullFlavor: for source.extension as ext where ext.url = 'http://hl7.org/fhir/StructureDefinition/iso21090-nullFlavor' make target.nullFlavor as nullFlavor then {
-  	value: for ext.value as v make nullFlavor.value = cast(v, "string")
-  }
-      
-endgroup
+group Any() {
+  source.extension as ext where ext.url = 'http://hl7.org/fhir/StructureDefinition/iso21090-nullFlavor' -> target.nullFlavor as nullFlavor then {
+    ext.value as v -> nullFlavor.value = cast(v, 'string');
+  } "nullFlavor";
+}
 
-group for types Identifier extends Any
-	input source: Identifier as source
-	input target: II as target
+group Identifier(source source : Identifier, target target : II) extends Any <<types>> {
+  source.system as system then {
+    source.value as value then {
+      value.value as v where system.value = 'urn:ietf:rfc:3986' -> target.root = cast(v, 'string') "noextension";
+      system.value as v where system.value != 'urn:ietf:rfc:3986' -> target.root = v then {
+        value.value as val -> target.extension = cast(val, 'string') "extension";
+      } "withextension";
+    } "rootValue";
+  } "root";
+  source.assigner as a then {
+    a.display as display then {
+      display.value as val -> target.assigningAuthorityName = cast(val, 'string');
+    };
+  };
+  source.extension as ext where ext.url = 'http://hl7.org/fhir/cdaStructureDefinition/extension-displayable' -> target.displayable as displayable then {
+    ext.value as v -> displayable.value = cast(v, 'string');
+  } "displayable";
+}
 
-	root: for source.system as system then {
-		rootValue : for source.value as value then {
-			noextension: for value.value as v where system.value = 'urn:ietf:rfc:3986' make target.root = cast(v, "string")
-			withextension: for system.value as v where system.value != 'urn:ietf:rfc:3986' make target.root = v then {
-				extension: for value.value as val make target.extension = cast(val, "string")
-			}
-		}
-	}
-	
-	assigner: for source.assigner as a then {
-		display: for a.display as display then {
-			value: for display.value as val make target.assigningAuthorityName = cast(val, "string")
-		}
-	}
-	displayable: for source.extension as ext where ext.url = 'http://hl7.org/fhir/cdaStructureDefinition/extension-displayable' make target.displayable as displayable then {
-		value: for ext.value as v make displayable.value = cast(v, "string")
-	}
-endgroup
